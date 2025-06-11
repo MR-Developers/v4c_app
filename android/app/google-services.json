@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "658506360235",
+    "project_id": "v4c-app-72802",
+    "storage_bucket": "v4c-app-72802.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:658506360235:android:7eed1fca13b375ee2e5eee",
+        "android_client_info": {
+          "package_name": "com.v4ceducation.v4c_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAjSMrdka93P2DVaTuoB1ahhK0zE9PU5xg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
