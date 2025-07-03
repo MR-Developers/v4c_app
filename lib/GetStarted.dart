@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:v4c_app/Login.dart';
-import 'package:v4c_app/hexcolor.dart';
+import 'package:v4c_app/utils/Login.dart';
+import 'package:v4c_app/utils/hexcolor.dart';
 
 class Getstarted extends StatefulWidget {
   @override
