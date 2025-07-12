@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 class VideoFullScreen extends StatefulWidget {
-  final String videoUrl;
+  final String videoUrl; // e.g. https://player.vimeo.com/video/VIDEO_ID
 
   const VideoFullScreen({super.key, required this.videoUrl});
 
@@ -11,17 +11,12 @@ class VideoFullScreen extends StatefulWidget {
 }
 
 class _VideoFullScreenState extends State<VideoFullScreen> {
-  late final WebViewController _controller;
+  InAppWebViewController? _webViewController;
 
-  @override
-  void initState() {
-    super.initState();
+  String getHtml(String videoUrl) {
+    final safeUrl = videoUrl.contains('?') ? videoUrl : '$videoUrl';
 
-    final String autoplayUrl = widget.videoUrl.contains('?')
-        ? '${widget.videoUrl}&autoplay=1'
-        : '${widget.videoUrl}?autoplay=1';
-
-    final String htmlContent = '''
+    return '''
     <!DOCTYPE html>
     <html>
     <head>
@@ -33,45 +28,64 @@ class _VideoFullScreenState extends State<VideoFullScreen> {
           background-color: black;
           height: 100%;
           overflow: hidden;
+          display: flex;
+          justify-content: center;
+          align-items: center;
         }
-        .video-container {
-          position: relative;
-          padding-bottom: 56.25%;
-          height: 0;
-        }
-        .video-container iframe {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
+        iframe {
+          width: 100vw;
+          height: 100vh;
           border: none;
         }
       </style>
     </head>
     <body>
-      <div class="video-container">
-        <iframe 
-          src="$autoplayUrl"
-          allow="autoplay; fullscreen; picture-in-picture"
-          allowfullscreen
-          title="Video Player">
-        </iframe>
-      </div>
+      <iframe
+        id="vimeoFrame"
+        src="$safeUrl"
+        allow="autoplay; fullscreen; picture-in-picture"
+        allowfullscreen
+        frameborder="0"
+      ></iframe>
+
+      <script>
+        window.onload = function () {
+          const iframe = document.getElementById('vimeoFrame');
+          iframe.focus();
+        };
+      </script>
     </body>
     </html>
     ''';
-
-    _controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..loadHtmlString(htmlContent);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: WebViewWidget(controller: _controller),
+      body: InAppWebView(
+        initialData: InAppWebViewInitialData(
+          data: getHtml(widget.videoUrl),
+          baseUrl: WebUri("https://player.vimeo.com"),
+        ),
+        initialOptions: InAppWebViewGroupOptions(
+          crossPlatform: InAppWebViewOptions(
+            javaScriptEnabled: true,
+            mediaPlaybackRequiresUserGesture: true,
+            supportZoom: false,
+          ),
+          android: AndroidInAppWebViewOptions(
+            useWideViewPort: true,
+            builtInZoomControls: false,
+          ),
+        ),
+        onWebViewCreated: (controller) {
+          _webViewController = controller;
+        },
+        onConsoleMessage: (controller, msg) {
+          print("Web Console: ${msg.message}");
+        },
+      ),
     );
   }
 }

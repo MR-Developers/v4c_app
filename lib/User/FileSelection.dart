@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:v4c_app/User/PdfList.dart';
-import 'package:v4c_app/User/VideoList.dart';
+import 'package:v4c_app/User/WeekSelectionPage.dart';
 
 class FileSelectionPage extends StatefulWidget {
-  const FileSelectionPage({super.key});
+  final String className;
+  final String courseName;
+  final String userEmail;
+
+  const FileSelectionPage({
+    required this.className,
+    required this.courseName,
+    required this.userEmail,
+    super.key,
+  });
 
   @override
   State<FileSelectionPage> createState() => _FileSelectionPageState();
@@ -25,11 +33,6 @@ class _FileSelectionPageState extends State<FileSelectionPage> {
       iconData: Icons.description,
       gradient: [Color(0xFFFFDCB6), Color(0xFFA5F7FF)],
     ),
-    _ClassItem(
-      name: "FlipBooks",
-      iconData: Icons.menu_book,
-      gradient: [Color(0xFFFF9929), Color(0xFFFEFEFE)],
-    ),
   ];
 
   @override
@@ -46,45 +49,37 @@ class _FileSelectionPageState extends State<FileSelectionPage> {
 
   void _handleKey(RawKeyEvent event) {
     if (event is RawKeyDownEvent) {
-      int maxIndex = classOptions.length; // 0..2 = options, 3 = Resume
+      int maxIndex = classOptions.length;
       if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
-          selectedIndex < maxIndex) {
+          selectedIndex < maxIndex - 1) {
         setState(() => selectedIndex++);
       } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
           selectedIndex > 0) {
         setState(() => selectedIndex--);
       } else if (event.logicalKey == LogicalKeyboardKey.enter ||
           event.logicalKey == LogicalKeyboardKey.select) {
-        if (selectedIndex < classOptions.length) {
-          _onClassSelected(classOptions[selectedIndex].name);
-        } else {
-          _onResumePressed();
-        }
+        _onContentTypeSelected(classOptions[selectedIndex].name);
       }
     }
   }
 
-  void _onClassSelected(String className) {
-    if (className == "Videos") {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => VideoListPage()),
-      );
-    } else if (className == "Lesson Plans") {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => PdfListPage()),
-      );
-    } else if (className == "FlipBooks") {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('FlipBooks Selected')));
-    }
-  }
-
-  void _onResumePressed() {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('Resumed Previous')));
-    // TODO: Add your resume logic/navigation here
+  void _onContentTypeSelected(String contentType) {
+    String content = contentType == "Videos"
+        ? "video"
+        : contentType == "Lesson Plans"
+            ? "pdf"
+            : "flipBook";
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => WeekSelectionPage(
+          selectedClass: widget.className,
+          courseName: widget.courseName,
+          selectedContentType: content,
+          userEmail: widget.userEmail,
+        ),
+      ),
+    );
   }
 
   @override
@@ -97,7 +92,6 @@ class _FileSelectionPageState extends State<FileSelectionPage> {
         onKey: _handleKey,
         child: Stack(
           children: [
-            // Center content (3 file cards)
             Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -108,7 +102,7 @@ class _FileSelectionPageState extends State<FileSelectionPage> {
                       final index = entry.key;
                       final item = entry.value;
                       return GestureDetector(
-                        onTap: () => _onClassSelected(item.name),
+                        onTap: () => _onContentTypeSelected(item.name),
                         child: AnimatedContainer(
                           duration: Duration(milliseconds: 100),
                           margin: EdgeInsets.symmetric(horizontal: 16),
@@ -156,8 +150,7 @@ class _FileSelectionPageState extends State<FileSelectionPage> {
                 ],
               ),
             ),
-
-            // Bottom bar (avatar, prompt, resume)
+            // Bottom bar
             Positioned(
               bottom: 30,
               left: 30,
@@ -184,47 +177,13 @@ class _FileSelectionPageState extends State<FileSelectionPage> {
                       ],
                     ),
                     child: const Text(
-                      "Videos, Lesson Plans or FlipBooks?",
+                      "Videos Or Lesson Plans?",
                       style:
                           TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                   ),
                   const Spacer(),
-                  GestureDetector(
-                    onTap: _onResumePressed,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 100),
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 15, horizontal: 20),
-                      decoration: BoxDecoration(
-                        color: Colors.orange,
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.blue.withOpacity(0.5),
-                            blurRadius: 8,
-                            spreadRadius: 2,
-                          ),
-                        ],
-                        border: Border.all(
-                          color: selectedIndex == classOptions.length
-                              ? Colors.blue.withOpacity(0.8)
-                              : Colors.transparent,
-                          width: 3,
-                        ),
-                      ),
-                      child: Row(
-                        children: const [
-                          Icon(Icons.play_arrow, color: Colors.white),
-                          SizedBox(width: 8),
-                          Text(
-                            "Resume Previous",
-                            style: TextStyle(fontSize: 20, color: Colors.white),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                  // You can skip Resume button for now or pass data as needed
                 ],
               ),
             )

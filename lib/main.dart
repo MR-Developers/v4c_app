@@ -31,8 +31,47 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
-          visualDensity: VisualDensity.adaptivePlatformDensity,
-          primarySwatch: Colors.blue,
+          brightness: Brightness.light,
+          primarySwatch: Colors.orange,
+          scaffoldBackgroundColor:
+              Colors.orange.shade50, // Light orange background
+          appBarTheme: AppBarTheme(
+            backgroundColor: Colors.orange,
+            foregroundColor: Colors.white,
+          ),
+          elevatedButtonTheme: ElevatedButtonThemeData(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+          floatingActionButtonTheme: const FloatingActionButtonThemeData(
+            backgroundColor: Colors.orange,
+            foregroundColor: Colors.white,
+          ),
+          checkboxTheme: CheckboxThemeData(
+            fillColor: MaterialStateProperty.all(Colors.orange),
+          ),
+          radioTheme: RadioThemeData(
+            fillColor: MaterialStateProperty.all(Colors.orange),
+          ),
+          switchTheme: SwitchThemeData(
+            thumbColor: MaterialStateProperty.all(Colors.orange),
+            trackColor: MaterialStateProperty.all(Colors.orange.shade200),
+          ),
+          colorScheme: ColorScheme.fromSwatch(
+            primarySwatch: Colors.orange,
+          ).copyWith(
+            secondary: Colors.orangeAccent,
+          ),
+          textSelectionTheme: TextSelectionThemeData(
+            cursorColor: Colors.orange,
+            selectionColor: Colors.orange.shade200,
+            selectionHandleColor: Colors.orange,
+          ),
         ),
         home: isLoggedIn ? const ClassSelectionPage() : Getstarted(),
       ),

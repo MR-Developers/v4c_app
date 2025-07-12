@@ -1,9 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart';
 import 'package:v4c_app/User/ClassSelection.dart';
 import 'package:v4c_app/utils/ForgotPassword.dart';
 import 'package:v4c_app/utils/TextFieldPage.dart';
@@ -27,6 +25,7 @@ class _LoginPageState extends State<LoginPage> {
 
   bool isLoading = false;
   String? errorText;
+
   @override
   void initState() {
     super.initState();
@@ -42,7 +41,6 @@ class _LoginPageState extends State<LoginPage> {
     passwordFocus.dispose();
     loginButtonFocus.dispose();
     forgotPasswordFocus.dispose();
-
     emailController.dispose();
     passwordController.dispose();
     super.dispose();
@@ -63,8 +61,11 @@ class _LoginPageState extends State<LoginPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Login successful')),
       );
-      Navigator.pushReplacement(context,
-          MaterialPageRoute(builder: (context) => const ClassSelectionPage()));
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const ClassSelectionPage()),
+      );
     } on FirebaseAuthException catch (e) {
       setState(() {
         errorText = e.message ?? "Authentication failed";
@@ -76,64 +77,90 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  void CheckUser() async {
+    final email = emailController.text.trim();
+    final password = passwordController.text;
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please enter both email and password.")),
+      );
+      return;
+    }
+
+    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please enter a valid email address.")),
+      );
+      return;
+    }
+
+    try {
+      final docSnapshot =
+          await FirebaseFirestore.instance.collection('Admin').doc(email).get();
+
+      if (docSnapshot.exists) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("No user found with this email.")),
+        );
+      } else {
+        loginUser();
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error checking user: $e")),
+      );
+    }
+  }
+
+  TextStyle _labelStyle() => const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w500,
+        color: Colors.black,
+      );
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Row(
-        children: [
-          Expanded(
-            flex: 2,
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 500),
-                  child: KeyboardListener(
-                    focusNode: FocusNode(),
-                    autofocus: true,
-                    onKeyEvent: (event) async {
-                      if (event is KeyDownEvent) {
-                        if (emailFocus.hasFocus &&
-                            event.logicalKey == LogicalKeyboardKey.arrowDown) {
-                          passwordFocus.requestFocus();
-                          setState(() {});
-                          await Future.delayed(Duration(milliseconds: 100));
-                          return;
-                        } else if (passwordFocus.hasFocus &&
-                            event.logicalKey == LogicalKeyboardKey.arrowUp) {
-                          emailFocus.requestFocus();
-                          setState(() {});
-                          await Future.delayed(Duration(milliseconds: 100));
-                          return;
-                        } else if (passwordFocus.hasFocus &&
-                            event.logicalKey == LogicalKeyboardKey.arrowDown) {
-                          forgotPasswordFocus.requestFocus();
-                          setState(() {});
-                          await Future.delayed(Duration(milliseconds: 100));
-                          return;
-                        } else if (forgotPasswordFocus.hasFocus &&
-                            event.logicalKey == LogicalKeyboardKey.arrowUp) {
-                          passwordFocus.requestFocus();
-                          setState(() {});
-                          await Future.delayed(Duration(milliseconds: 100));
-                          return;
-                        } else if (forgotPasswordFocus.hasFocus &&
-                            event.logicalKey == LogicalKeyboardKey.arrowDown) {
-                          loginButtonFocus.requestFocus();
-                          setState(() {});
-                          await Future.delayed(Duration(milliseconds: 100));
-                          return;
-                        } else if (loginButtonFocus.hasFocus &&
-                            event.logicalKey == LogicalKeyboardKey.arrowUp) {
-                          forgotPasswordFocus.requestFocus();
-                          setState(() {});
-                          await Future.delayed(Duration(milliseconds: 100));
-                          return;
-                        } else {
-                          return;
-                        }
-                      }
-                    },
+    return KeyboardListener(
+      focusNode: FocusNode(),
+      autofocus: true,
+      onKeyEvent: (event) async {
+        if (event is KeyDownEvent) {
+          if (emailFocus.hasFocus &&
+              event.logicalKey == LogicalKeyboardKey.arrowDown) {
+            passwordFocus.requestFocus();
+          } else if (passwordFocus.hasFocus &&
+              event.logicalKey == LogicalKeyboardKey.arrowUp) {
+            emailFocus.requestFocus();
+          } else if (passwordFocus.hasFocus &&
+              event.logicalKey == LogicalKeyboardKey.arrowDown) {
+            forgotPasswordFocus.requestFocus();
+          } else if (forgotPasswordFocus.hasFocus &&
+              event.logicalKey == LogicalKeyboardKey.arrowUp) {
+            passwordFocus.requestFocus();
+          } else if (forgotPasswordFocus.hasFocus &&
+              event.logicalKey == LogicalKeyboardKey.arrowDown) {
+            loginButtonFocus.requestFocus();
+          } else if (loginButtonFocus.hasFocus &&
+              event.logicalKey == LogicalKeyboardKey.arrowUp) {
+            forgotPasswordFocus.requestFocus();
+          } else if (passwordFocus.hasFocus &&
+              event.logicalKey == LogicalKeyboardKey.enter) {
+            CheckUser(); // Trigger login from password field
+          }
+          setState(() {});
+        }
+      },
+      child: Scaffold(
+        body: Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 500),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -159,7 +186,6 @@ class _LoginPageState extends State<LoginPage> {
                         const SizedBox(height: 8),
                         FocusableActionDetector(
                           focusNode: emailFocus,
-                          autofocus: false,
                           actions: {
                             ActivateIntent: CallbackAction<ActivateIntent>(
                               onInvoke: (intent) async {
@@ -175,49 +201,17 @@ class _LoginPageState extends State<LoginPage> {
                               },
                             ),
                           },
-                          child: Container(
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(5),
-                              border: Border.all(
-                                color: emailFocus.hasFocus
-                                    ? Colors.blue.withOpacity(0.8)
-                                    : Colors.grey.shade400,
-                              ),
-                              boxShadow: emailFocus.hasFocus
-                                  ? [
-                                      BoxShadow(
-                                        color: Colors.blue.withOpacity(0.5),
-                                        blurRadius: 6,
-                                        spreadRadius: 2,
-                                      )
-                                    ]
-                                  : [],
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.only(
-                                  left: 10, top: 16, bottom: 16),
-                              child: Text(
-                                emailController.text.isNotEmpty
-                                    ? emailController.text
-                                    : 'Enter your Email',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  color: emailFocus.hasFocus
-                                      ? Colors.blue
-                                      : Colors.grey,
-                                ),
-                              ),
-                            ),
-                          ),
+                          child: buildInputBox(
+                              emailFocus,
+                              emailController.text.isNotEmpty
+                                  ? emailController.text
+                                  : 'Enter your Email'),
                         ),
                         const SizedBox(height: 20),
                         Text("Password", style: _labelStyle()),
                         const SizedBox(height: 8),
                         FocusableActionDetector(
                           focusNode: passwordFocus,
-                          autofocus: false,
                           actions: {
                             ActivateIntent: CallbackAction<ActivateIntent>(
                               onInvoke: (intent) async {
@@ -233,47 +227,11 @@ class _LoginPageState extends State<LoginPage> {
                               },
                             ),
                           },
-                          child: GestureDetector(
-                            onTap: () {
-                              passwordFocus.requestFocus();
-                            },
-                            child: Container(
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(5),
-                                border: Border.all(
-                                  color: passwordFocus.hasFocus
-                                      ? Colors.blue.withOpacity(0.8)
-                                      : Colors.grey.shade400,
-                                ),
-                                boxShadow: passwordFocus.hasFocus
-                                    ? [
-                                        BoxShadow(
-                                          color: Colors.blue.withOpacity(0.5),
-                                          blurRadius: 6,
-                                          spreadRadius: 2,
-                                        )
-                                      ]
-                                    : [],
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.only(
-                                    left: 10, top: 16, bottom: 16),
-                                child: Text(
-                                  passwordController.text.isNotEmpty
-                                      ? '${'*' * passwordController.text.length}'
-                                      : 'Enter your Password',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    color: passwordFocus.hasFocus
-                                        ? Colors.blue
-                                        : Colors.grey,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
+                          child: buildInputBox(
+                              passwordFocus,
+                              passwordController.text.isNotEmpty
+                                  ? '${'*' * passwordController.text.length}'
+                                  : 'Enter your Password'),
                         ),
                         const SizedBox(height: 5),
                         FocusableActionDetector(
@@ -318,9 +276,7 @@ class _LoginPageState extends State<LoginPage> {
                         const SizedBox(height: 20),
                         Focus(
                           focusNode: loginButtonFocus,
-                          onFocusChange: (hasFocus) {
-                            setState(() {});
-                          },
+                          onFocusChange: (_) => setState(() {}),
                           child: SizedBox(
                             width: double.infinity,
                             height: 50,
@@ -340,7 +296,6 @@ class _LoginPageState extends State<LoginPage> {
                                 shadowColor: loginButtonFocus.hasFocus
                                     ? Colors.cyan[200]
                                     : Colors.grey.withOpacity(0.5),
-                                animationDuration: Duration.zero,
                               ),
                               onPressed: isLoading ? null : CheckUser,
                               child: isLoading
@@ -365,62 +320,62 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
             ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Container(
-              color: HexColor("#64B1B9"),
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(30.0),
-                  child: Container(
-                    color: Colors.white,
-                    child: Image.asset(
-                      'assets/images/V4CLogo(Landscape).png',
-                      fit: BoxFit.contain,
-                      width: 350,
+            Expanded(
+              flex: 2,
+              child: Container(
+                color: HexColor("#64B1B9"),
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(30.0),
+                    child: Container(
+                      color: Colors.white,
+                      child: Image.asset(
+                        'assets/images/V4CLogo(Landscape).png',
+                        fit: BoxFit.contain,
+                        width: 350,
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  void CheckUser() async {
-    final email = emailController.text.trim();
-
-    if (email.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Please enter an email.")),
-      );
-      return;
-    }
-
-    try {
-      final docSnapshot =
-          await FirebaseFirestore.instance.collection('Admin').doc(email).get();
-
-      if (docSnapshot.exists) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("No user found with this email.")),
-        );
-      } else {
-        loginUser();
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error checking user: $e")),
-      );
-    }
+  Widget buildInputBox(FocusNode focusNode, String text) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(
+          color: focusNode.hasFocus
+              ? Colors.blue.withOpacity(0.8)
+              : Colors.grey.shade400,
+        ),
+        boxShadow: focusNode.hasFocus
+            ? [
+                BoxShadow(
+                  color: Colors.blue.withOpacity(0.5),
+                  blurRadius: 6,
+                  spreadRadius: 2,
+                )
+              ]
+            : [],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.only(left: 10, top: 16, bottom: 16),
+        child: Text(
+          text,
+          style: TextStyle(
+            fontSize: 18,
+            color: focusNode.hasFocus ? Colors.blue : Colors.grey,
+          ),
+        ),
+      ),
+    );
   }
-
-  TextStyle _labelStyle() => const TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.w500,
-        color: Colors.black,
-      );
 }

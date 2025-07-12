@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:v4c_app/User/FileSelection.dart';
@@ -45,7 +47,7 @@ class _ClassSelectionPageState extends State<ClassSelectionPage> {
 
   void _handleKey(RawKeyEvent event) {
     if (event is RawKeyDownEvent) {
-      int maxIndex = classOptions.length; // last index is resume button
+      int maxIndex = classOptions.length; // Resume is after last class
       if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
           selectedIndex < maxIndex) {
         setState(() => selectedIndex++);
@@ -57,27 +59,107 @@ class _ClassSelectionPageState extends State<ClassSelectionPage> {
         if (selectedIndex < classOptions.length) {
           _onClassSelected(classOptions[selectedIndex].name);
         } else {
-          _onResumePressed();
+          // _onResumePressed();
         }
       }
     }
   }
 
-  void _onClassSelected(String className) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const FileSelectionPage()),
-    );
-  }
+  // void _onResumePressed() {
+  //   ScaffoldMessenger.of(context).showSnackBar(
+  //     const SnackBar(content: Text('Resumed Previous')),
+  //   );
+  //   Navigator.push(
+  //     context,
+  //     MaterialPageRoute(builder: (context) => const FileSelectionPage()),
+  //   );
+  // }
 
-  void _onResumePressed() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Resumed Previous')),
-    );
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const FileSelectionPage()),
-    );
+  void _onClassSelected(String className) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("User not logged in")),
+      );
+      return;
+    }
+
+    final userEmail = currentUser.email;
+
+    try {
+      // Step 1: Get schoolName from user document
+      final userDoc = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(userEmail)
+          .get();
+
+      if (!userDoc.exists) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("User data not found")),
+        );
+        return;
+      }
+
+      final schoolName = userDoc.data()?['schoolName'];
+      if (schoolName == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("School not assigned to user")),
+        );
+        return;
+      }
+
+      // Step 2: Get courseName from /schools/{school}/classes/{class}
+      final classDoc = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolName)
+          .collection('classes')
+          .doc(className)
+          .get();
+
+      if (!classDoc.exists) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Class data not found in school")),
+        );
+        return;
+      }
+
+      final courseName = classDoc.data()?['courseName'];
+      if (courseName == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("No course assigned to this class")),
+        );
+        return;
+      }
+
+      // Step 3: Check if course exists
+      final courseDoc = await FirebaseFirestore.instance
+          .collection('courses')
+          .doc(courseName)
+          .get();
+
+      if (!courseDoc.exists) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Course content not available")),
+        );
+        return;
+      }
+
+      // All good → go to next screen
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => FileSelectionPage(
+            courseName: courseName,
+            className: className,
+            userEmail: userEmail ?? '',
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error fetching course data: $e")),
+      );
+    }
   }
 
   @override
@@ -181,44 +263,44 @@ class _ClassSelectionPageState extends State<ClassSelectionPage> {
                     ),
                   ),
                   const Spacer(),
-                  GestureDetector(
-                    onTap: _onResumePressed,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 100),
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 15, horizontal: 20),
-                      decoration: BoxDecoration(
-                        color: Colors.orange,
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.blue.withOpacity(0.5),
-                            blurRadius: 8,
-                            spreadRadius: 2,
-                          ),
-                        ],
-                        border: Border.all(
-                          color: selectedIndex == classOptions.length
-                              ? Colors.blue.withOpacity(0.8)
-                              : Colors.transparent,
-                          width: 3,
-                        ),
-                      ),
-                      child: Row(
-                        children: const [
-                          Icon(Icons.play_arrow, color: Colors.white),
-                          SizedBox(width: 8),
-                          Text(
-                            "Resume Previous",
-                            style: TextStyle(fontSize: 20, color: Colors.white),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                  // GestureDetector(
+                  //   // onTap: _onResumePressed,
+                  //   child: AnimatedContainer(
+                  //     duration: const Duration(milliseconds: 100),
+                  //     padding: const EdgeInsets.symmetric(
+                  //         vertical: 15, horizontal: 20),
+                  //     decoration: BoxDecoration(
+                  //       color: Colors.orange,
+                  //       borderRadius: BorderRadius.circular(10),
+                  //       boxShadow: [
+                  //         BoxShadow(
+                  //           color: Colors.blue.withOpacity(0.5),
+                  //           blurRadius: 8,
+                  //           spreadRadius: 2,
+                  //         ),
+                  //       ],
+                  //       border: Border.all(
+                  //         color: selectedIndex == classOptions.length
+                  //             ? Colors.blue.withOpacity(0.8)
+                  //             : Colors.transparent,
+                  //         width: 3,
+                  //       ),
+                  //     ),
+                  //     child: Row(
+                  //       children: const [
+                  //         Icon(Icons.play_arrow, color: Colors.white),
+                  //         SizedBox(width: 8),
+                  //         Text(
+                  //           "Resume Previous",
+                  //           style: TextStyle(fontSize: 20, color: Colors.white),
+                  //         ),
+                  //       ],
+                  //     ),
+                  //   ),
+                  // ),
                 ],
               ),
-            )
+            ),
           ],
         ),
       ),
