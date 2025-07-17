@@ -97,9 +97,7 @@ class _VideoListPageState extends State<VideoListPage> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => VideoFullScreen(
-              videoUrl: videos[selectedIndex].value,
-            ),
+            builder: (_) => const VdoPlaybackView(),
           ),
         );
       }
@@ -168,10 +166,8 @@ class _VideoListPageState extends State<VideoListPage> {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (_) => VideoFullScreen(
-                                          videoUrl: video.value,
-                                        ),
-                                      ),
+                                          builder: (_) =>
+                                              const VdoPlaybackView()),
                                     );
                                   },
                                   child: Container(

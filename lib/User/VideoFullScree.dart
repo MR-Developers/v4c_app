@@ -1,91 +1,87 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:vdocipher_flutter/vdocipher_flutter.dart';
 
-class VideoFullScreen extends StatefulWidget {
-  final String videoUrl; // e.g. https://player.vimeo.com/video/VIDEO_ID
-
-  const VideoFullScreen({super.key, required this.videoUrl});
+class VdoPlaybackView extends StatefulWidget {
+  const VdoPlaybackView({super.key});
 
   @override
-  State<VideoFullScreen> createState() => _VideoFullScreenState();
+  _VdoPlaybackViewState createState() => _VdoPlaybackViewState();
 }
 
-class _VideoFullScreenState extends State<VideoFullScreen> {
-  InAppWebViewController? _webViewController;
-
-  String getHtml(String videoUrl) {
-    final safeUrl = videoUrl.contains('?') ? videoUrl : '$videoUrl';
-
-    return '''
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <style>
-        html, body {
-          margin: 0;
-          padding: 0;
-          background-color: black;
-          height: 100%;
-          overflow: hidden;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-        }
-        iframe {
-          width: 100vw;
-          height: 100vh;
-          border: none;
-        }
-      </style>
-    </head>
-    <body>
-      <iframe
-        id="vimeoFrame"
-        src="$safeUrl"
-        allow="autoplay; fullscreen; picture-in-picture"
-        allowfullscreen
-        frameborder="0"
-      ></iframe>
-
-      <script>
-        window.onload = function () {
-          const iframe = document.getElementById('vimeoFrame');
-          iframe.focus();
-        };
-      </script>
-    </body>
-    </html>
-    ''';
-  }
+class _VdoPlaybackViewState extends State<VdoPlaybackView> {
+  VdoPlayerController? _controller;
+  final ValueNotifier<bool> _isFullScreen = ValueNotifier(false);
 
   @override
   Widget build(BuildContext context) {
+    const EmbedInfo sample1 = EmbedInfo.streaming(
+        otp: '20160313versASE313N2GIgnZjjFKOYWXnZY1ms8Y5YmvgJnt3v2phvCl7G9BsrJ',
+        playbackInfo:
+            'eyJ2aWRlb0lkIjoiYTllYWUwOTZjZDg4NGRiYmEzNTE1M2VlNDJhNTA0YTgifQ==',
+        embedInfoOptions: EmbedInfoOptions(autoplay: true));
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: InAppWebView(
-        initialData: InAppWebViewInitialData(
-          data: getHtml(widget.videoUrl),
-          baseUrl: WebUri("https://player.vimeo.com"),
+        body: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Flexible(
+          child: SizedBox(
+        width: MediaQuery.of(context).size.width,
+        height: _isFullScreen.value
+            ? MediaQuery.of(context).size.height
+            : _getHeightForWidth(MediaQuery.of(context).size.width),
+        child: VdoPlayer(
+          embedInfo: sample1,
+          onPlayerCreated: (controller) => _onPlayerCreated(controller),
+          onFullscreenChange: _onFullscreenChange,
+          onError: _onVdoError,
+          controls: true, //optional, set false to disable player controls
         ),
-        initialOptions: InAppWebViewGroupOptions(
-          crossPlatform: InAppWebViewOptions(
-            javaScriptEnabled: true,
-            mediaPlaybackRequiresUserGesture: true,
-            supportZoom: false,
-          ),
-          android: AndroidInAppWebViewOptions(
-            useWideViewPort: true,
-            builtInZoomControls: false,
-          ),
-        ),
-        onWebViewCreated: (controller) {
-          _webViewController = controller;
-        },
-        onConsoleMessage: (controller, msg) {
-          print("Web Console: ${msg.message}");
-        },
-      ),
-    );
+      )),
+      ValueListenableBuilder(
+          valueListenable: _isFullScreen,
+          builder: (context, dynamic value, child) {
+            return value ? const SizedBox.shrink() : _nonFullScreenContent();
+          }),
+    ]));
+  }
+
+  _onVdoError(VdoError vdoError) {
+    print("Oops, the system encountered a problem: ${vdoError.message}");
+  }
+
+  _onPlayerCreated(VdoPlayerController? controller) {
+    setState(() {
+      _controller = controller;
+      _onEventChange(_controller);
+    });
+  }
+
+  _onEventChange(VdoPlayerController? controller) {
+    controller!.addListener(() {
+      VdoPlayerValue value = controller.value;
+
+      print("VdoControllerListner"
+          "\nloading: ${value.isLoading} "
+          "\nplaying: ${value.isPlaying} "
+          "\nbuffering: ${value.isBuffering} "
+          "\nended: ${value.isEnded}");
+    });
+  }
+
+  _onFullscreenChange(isFullscreen) {
+    setState(() {
+      _isFullScreen.value = isFullscreen;
+    });
+  }
+
+  _nonFullScreenContent() {
+    return const Column(children: [
+      Text(
+        'Sample Playback',
+        style: TextStyle(fontSize: 20.0),
+      )
+    ]);
+  }
+
+  double _getHeightForWidth(double width) {
+    return width;
   }
 }
