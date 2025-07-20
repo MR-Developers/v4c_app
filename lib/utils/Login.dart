@@ -146,7 +146,7 @@ class _LoginPageState extends State<LoginPage> {
             forgotPasswordFocus.requestFocus();
           } else if (passwordFocus.hasFocus &&
               event.logicalKey == LogicalKeyboardKey.enter) {
-            CheckUser(); // Trigger login from password field
+            CheckUser();
           }
           setState(() {});
         }

@@ -32,7 +32,7 @@ class _VdoPlaybackViewState extends State<VdoPlaybackView> {
           onPlayerCreated: (controller) => _onPlayerCreated(controller),
           onFullscreenChange: _onFullscreenChange,
           onError: _onVdoError,
-          controls: true, //optional, set false to disable player controls
+          controls: true,
         ),
       )),
       ValueListenableBuilder(
