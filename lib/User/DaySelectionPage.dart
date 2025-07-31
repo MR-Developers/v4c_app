@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -32,6 +33,7 @@ class _DaySelectionPageState extends State<DaySelectionPage> {
   final FocusNode _keyboardFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
   final List<FocusNode> itemFocusNodes = [];
+  Map<String, bool> dayCompletionStatus = {};
 
   @override
   void initState() {
@@ -58,6 +60,10 @@ class _DaySelectionPageState extends State<DaySelectionPage> {
   }
 
   Future<void> fetchAvailableDays() async {
+    setState(() {
+      isLoading = true;
+    });
+
     try {
       final doc = await FirebaseFirestore.instance
           .collection('courses')
@@ -82,9 +88,29 @@ class _DaySelectionPageState extends State<DaySelectionPage> {
       });
 
       days.sort();
+      final userId = FirebaseAuth.instance.currentUser!.uid;
+      final progressDoc = await FirebaseFirestore.instance
+          .collection('Courseprogress')
+          .doc(userId)
+          .collection('courseProgress')
+          .doc(widget.courseName)
+          .get();
+
+      Map<String, bool> completionMap = {};
+
+      if (progressDoc.exists) {
+        final progressData = progressDoc.data();
+        final dayCompletion =
+            progressData?['dayCompletion']?[widget.weekName] ?? {};
+
+        for (final day in days) {
+          completionMap[day] = dayCompletion[day] == true;
+        }
+      }
 
       setState(() {
         availableDays = days;
+        dayCompletionStatus = completionMap;
         itemFocusNodes.addAll(List.generate(days.length, (_) => FocusNode()));
         isLoading = false;
       });
@@ -96,7 +122,10 @@ class _DaySelectionPageState extends State<DaySelectionPage> {
         }
       });
     } catch (e) {
-      print("Error fetching days: $e");
+      print('Error fetching days: $e');
+      setState(() {
+        isLoading = false;
+      });
     }
   }
 
@@ -148,7 +177,7 @@ class _DaySelectionPageState extends State<DaySelectionPage> {
     final type = widget.contentType.toLowerCase();
 
     if (type == 'video') {
-      Navigator.push(
+      await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => VideoListPage(
@@ -158,6 +187,8 @@ class _DaySelectionPageState extends State<DaySelectionPage> {
           ),
         ),
       );
+      await fetchAvailableDays();
+      setState(() {});
     } else if (type == 'pdf') {
       final pdfUrl = dayData['pdf']?['url'];
       if (pdfUrl == null || pdfUrl.isEmpty) {
@@ -166,17 +197,133 @@ class _DaySelectionPageState extends State<DaySelectionPage> {
         );
         return;
       }
-      Navigator.push(
+      setState(() {
+        isLoading = true;
+      });
+      final userId = FirebaseAuth.instance.currentUser!.uid;
+      await FirebaseFirestore.instance
+          .collection('Courseprogress')
+          .doc(userId)
+          .collection('courseProgress')
+          .doc(widget.courseName)
+          .set({
+        'completedContent': {
+          widget.weekName: {
+            dayName: {
+              'pdf': true,
+            }
+          }
+        },
+        'lastAccessed': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => PdfFullScreenPage(pdfUrl: pdfUrl),
         ),
       );
+      await checkAndMarkDayWeekCourseCompletion(dayName);
+      await fetchAvailableDays();
+      setState(() {
+        isLoading = false;
+      });
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Unsupported content type')),
       );
     }
+  }
+
+  Future<void> checkAndMarkDayWeekCourseCompletion(String dayName) async {
+    final userId = FirebaseAuth.instance.currentUser!.uid;
+    final courseSnap = await FirebaseFirestore.instance
+        .collection('courses')
+        .doc(widget.courseName)
+        .get();
+
+    final courseContent = courseSnap.data()?['content'];
+    final progressSnap = await FirebaseFirestore.instance
+        .collection('Courseprogress')
+        .doc(userId)
+        .collection('courseProgress')
+        .doc(widget.courseName)
+        .get();
+
+    final progress = progressSnap.data()?['completedContent'] ?? {};
+
+    bool isDayComplete(String week, String day) {
+      final courseDay = courseContent[week]?[day] ?? {};
+      final userDayProgress = progress[week]?[day] ?? {};
+
+      for (final type in courseDay.keys) {
+        if (type == 'pdf') {
+          if (userDayProgress['pdf'] != true) return false;
+        } else if (type == 'video') {
+          final videos = courseDay['video'] ?? {};
+          for (final key in videos.keys) {
+            if (userDayProgress['video']?[key] != true) return false;
+          }
+        }
+      }
+      return true;
+    }
+
+    final dayCompleted = isDayComplete(widget.weekName, dayName);
+
+    await FirebaseFirestore.instance
+        .collection('Courseprogress')
+        .doc(userId)
+        .collection('courseProgress')
+        .doc(widget.courseName)
+        .set({
+      'dayCompletion': {
+        widget.weekName: {
+          dayName: dayCompleted,
+        }
+      },
+    }, SetOptions(merge: true));
+
+    /// Optional: Check if week complete
+    final weekDays = courseContent[widget.weekName]?.keys ?? [];
+    bool weekDone = true;
+    for (final day in weekDays) {
+      if (!(progressSnap.data()?['dayCompletion'][widget.weekName]?[day] ??
+          false)) {
+        weekDone = false;
+        break;
+      }
+    }
+
+    await FirebaseFirestore.instance
+        .collection('Courseprogress')
+        .doc(userId)
+        .collection('courseProgress')
+        .doc(widget.courseName)
+        .set({
+      'weekCompletion': {
+        widget.weekName: weekDone,
+      },
+    }, SetOptions(merge: true));
+
+    /// Optional: Check if course complete
+    final allWeeks = courseContent.keys;
+    bool courseDone = true;
+    for (final week in allWeeks) {
+      if (!(progressSnap.data()?['weekCompletion'][week] ?? false)) {
+        courseDone = false;
+        break;
+      }
+    }
+
+    await FirebaseFirestore.instance
+        .collection('Courseprogress')
+        .doc(userId)
+        .collection('courseProgress')
+        .doc(widget.courseName)
+        .set({
+      'courseCompleted': courseDone,
+    }, SetOptions(merge: true));
   }
 
   @override
@@ -242,7 +389,8 @@ class _DaySelectionPageState extends State<DaySelectionPage> {
                                   itemBuilder: (context, index) {
                                     final day = availableDays[index];
                                     final isFocused = index == selectedIndex;
-
+                                    final isCompleted =
+                                        dayCompletionStatus[day] == true;
                                     return Focus(
                                       focusNode: itemFocusNodes[index],
                                       child: GestureDetector(
@@ -264,11 +412,18 @@ class _DaySelectionPageState extends State<DaySelectionPage> {
                                           ),
                                           child: Row(
                                             children: [
-                                              const Icon(
-                                                Icons.radio_button_unchecked,
-                                                size: 20,
-                                                color: Colors.black26,
-                                              ),
+                                              if (isCompleted)
+                                                const Icon(
+                                                  Icons.check_circle,
+                                                  size: 20,
+                                                  color: Colors.green,
+                                                )
+                                              else
+                                                const Icon(
+                                                  Icons.radio_button_unchecked,
+                                                  size: 20,
+                                                  color: Colors.black26,
+                                                ),
                                               const SizedBox(width: 12),
                                               Expanded(
                                                 child: Text(

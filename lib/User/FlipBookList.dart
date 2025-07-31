@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:v4c_app/User/Pdf_Viewer.dart';
-import 'package:v4c_app/User/VideoFullScree.dart';
+import 'package:v4c_app/User/VideoFullScreen.dart';
 
 class PdfListPage extends StatefulWidget {
   const PdfListPage({super.key});
@@ -12,7 +12,8 @@ class PdfListPage extends StatefulWidget {
 
 class _PdfListPageState extends State<PdfListPage> {
   int selectedIndex = 0;
-  final List<String> titles = List.generate(50, (index) => 'FlipBook ${index + 1}');
+  final List<String> titles =
+      List.generate(50, (index) => 'FlipBook ${index + 1}');
   final List<FocusNode> itemFocusNodes = [];
   final ScrollController _scrollController = ScrollController();
   final FocusNode _keyboardFocusNode = FocusNode();

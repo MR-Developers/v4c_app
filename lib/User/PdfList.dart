@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:v4c_app/User/Pdf_Viewer.dart';
-import 'package:v4c_app/User/VideoFullScree.dart';
+import 'package:v4c_app/User/VideoFullScreen.dart';
 
 class PdfListPage extends StatefulWidget {
   const PdfListPage({super.key});

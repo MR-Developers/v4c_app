@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -26,8 +27,9 @@ class _WeekSelectionPageState extends State<WeekSelectionPage> {
   int selectedIndex = 0;
   final FocusNode _keyboardFocusNode = FocusNode();
   final List<FocusNode> itemFocusNodes = [];
+  bool isLoading = true;
   final ScrollController _scrollController = ScrollController();
-
+  Map<String, bool> weekProgress = {};
   @override
   void initState() {
     super.initState();
@@ -65,10 +67,27 @@ class _WeekSelectionPageState extends State<WeekSelectionPage> {
           .doc(courseName)
           .get();
       final content = courseDoc.data()?['content'] as Map<String, dynamic>?;
+      final userID = FirebaseAuth.instance.currentUser!.uid;
+      final progressDoc = await FirebaseFirestore.instance
+          .collection('Courseprogress')
+          .doc(userID)
+          .collection('courseProgress')
+          .doc(widget.courseName)
+          .get();
 
+      if (progressDoc.exists) {
+        final progressData = progressDoc.data();
+        final weekCompletion =
+            progressData?['weekCompletion'] as Map<String, dynamic>?;
+
+        if (weekCompletion != null) {
+          weekProgress = weekCompletion.map((k, v) => MapEntry(k, v == true));
+        }
+      }
       if (content != null) {
         setState(() {
           weekKeys = content.keys.toList()..sort();
+          isLoading = false;
           itemFocusNodes
               .addAll(List.generate(weekKeys.length, (_) => FocusNode()));
         });
@@ -111,8 +130,11 @@ class _WeekSelectionPageState extends State<WeekSelectionPage> {
     }
   }
 
-  void _onWeekSelected(String weekKey) {
-    Navigator.push(
+  void _onWeekSelected(String weekKey) async {
+    setState(() {
+      isLoading = true;
+    });
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => DaySelectionPage(
@@ -124,6 +146,10 @@ class _WeekSelectionPageState extends State<WeekSelectionPage> {
         ),
       ),
     );
+    await _loadWeeks(); // Reload weeks after selection
+    setState(() {
+      isLoading = false;
+    });
   }
 
   @override
@@ -144,7 +170,7 @@ class _WeekSelectionPageState extends State<WeekSelectionPage> {
         focusNode: _keyboardFocusNode,
         onKey: _handleKey,
         autofocus: true,
-        child: weekKeys.isEmpty
+        child: isLoading
             ? const Center(child: CircularProgressIndicator())
             : SizedBox.expand(
                 child: Stack(
@@ -199,10 +225,14 @@ class _WeekSelectionPageState extends State<WeekSelectionPage> {
                                       ),
                                       child: Row(
                                         children: [
-                                          const Icon(
-                                            Icons.radio_button_unchecked,
+                                          Icon(
+                                            weekProgress[week] == true
+                                                ? Icons.check_circle
+                                                : Icons.radio_button_unchecked,
                                             size: 20,
-                                            color: Colors.black26,
+                                            color: weekProgress[week] == true
+                                                ? Colors.green
+                                                : Colors.black26,
                                           ),
                                           const SizedBox(width: 12),
                                           Expanded(
