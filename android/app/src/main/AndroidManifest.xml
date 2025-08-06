@@ -3,8 +3,9 @@
 <uses-feature android:name="android.hardware.touchscreen" android:required="false"/>
 <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="v4c_app"
+        android:label="V4C Teacher"
         android:name="${applicationName}"
+        android:banner="@drawable/appbanner"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true"
         android:hardwareAccelerated="true"
