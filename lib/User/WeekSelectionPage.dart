@@ -86,7 +86,17 @@ class _WeekSelectionPageState extends State<WeekSelectionPage> {
       }
       if (content != null) {
         setState(() {
-          weekKeys = content.keys.toList()..sort();
+          weekKeys = content.keys.toList()
+            ..sort((a, b) {
+              final numA =
+                  int.tryParse(RegExp(r'\d+').firstMatch(a)?.group(0) ?? '') ??
+                      0;
+              final numB =
+                  int.tryParse(RegExp(r'\d+').firstMatch(b)?.group(0) ?? '') ??
+                      0;
+              return numA.compareTo(numB);
+            });
+
           isLoading = false;
           itemFocusNodes
               .addAll(List.generate(weekKeys.length, (_) => FocusNode()));
@@ -131,10 +141,7 @@ class _WeekSelectionPageState extends State<WeekSelectionPage> {
   }
 
   void _onWeekSelected(String weekKey) async {
-    setState(() {
-      isLoading = true;
-    });
-    await Navigator.push(
+    Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => DaySelectionPage(
@@ -146,10 +153,6 @@ class _WeekSelectionPageState extends State<WeekSelectionPage> {
         ),
       ),
     );
-    await _loadWeeks(); // Reload weeks after selection
-    setState(() {
-      isLoading = false;
-    });
   }
 
   @override
@@ -166,16 +169,32 @@ class _WeekSelectionPageState extends State<WeekSelectionPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: RawKeyboardListener(
-        focusNode: _keyboardFocusNode,
-        onKey: _handleKey,
-        autofocus: true,
-        child: isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : SizedBox.expand(
-                child: Stack(
-                  children: [
-                    SingleChildScrollView(
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('Courseprogress')
+                  .doc(FirebaseAuth.instance.currentUser!.uid)
+                  .collection('courseProgress')
+                  .doc(widget.courseName)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final data = snapshot.data!.data() as Map<String, dynamic>?;
+                final weekCompletion =
+                    data?['weekCompletion'] as Map<String, dynamic>? ?? {};
+                final progress =
+                    weekCompletion.map((k, v) => MapEntry(k, v == true));
+
+                return RawKeyboardListener(
+                  focusNode: _keyboardFocusNode,
+                  onKey: _handleKey,
+                  autofocus: true,
+                  child: SizedBox.expand(
+                    child: SingleChildScrollView(
                       padding: const EdgeInsets.all(24),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -226,22 +245,23 @@ class _WeekSelectionPageState extends State<WeekSelectionPage> {
                                       child: Row(
                                         children: [
                                           Icon(
-                                            weekProgress[week] == true
+                                            progress[week] == true
                                                 ? Icons.check_circle
                                                 : Icons.radio_button_unchecked,
                                             size: 20,
-                                            color: weekProgress[week] == true
+                                            color: progress[week] == true
                                                 ? Colors.green
                                                 : Colors.black26,
                                           ),
                                           const SizedBox(width: 12),
                                           Expanded(
-                                              child: Text(
-                                            getFormattedWeek(week),
-                                            style: const TextStyle(
-                                                fontSize: 18,
-                                                color: Colors.black87),
-                                          )),
+                                            child: Text(
+                                              getFormattedWeek(week),
+                                              style: const TextStyle(
+                                                  fontSize: 18,
+                                                  color: Colors.black87),
+                                            ),
+                                          ),
                                           const Icon(
                                             Icons.arrow_forward_ios,
                                             size: 16,
@@ -255,37 +275,13 @@ class _WeekSelectionPageState extends State<WeekSelectionPage> {
                               },
                             ),
                           ),
-                          const SizedBox(
-                              height: 100), // Padding above Resume button
                         ],
                       ),
                     ),
-
-                    // Resume Button
-                    // Positioned(
-                    //   right: 30,
-                    //   bottom: 30,
-                    //   child: ElevatedButton.icon(
-                    //     style: ElevatedButton.styleFrom(
-                    //       backgroundColor: Colors.orange,
-                    //       shape: RoundedRectangleBorder(
-                    //         borderRadius: BorderRadius.circular(30),
-                    //       ),
-                    //     ),
-                    //     onPressed: () {
-                    //       print("Resume Previous clicked");
-                    //     },
-                    //     icon: const Icon(Icons.play_arrow, color: Colors.white),
-                    //     label: const Text(
-                    //       "Resume Previous",
-                    //       style: TextStyle(color: Colors.white),
-                    //     ),
-                    //   ),
-                    // ),
-                  ],
-                ),
-              ),
-      ),
+                  ),
+                );
+              },
+            ),
     );
   }
 }

@@ -14,6 +14,8 @@ class ClassSelectionPage extends StatefulWidget {
 class _ClassSelectionPageState extends State<ClassSelectionPage> {
   int selectedIndex = 0;
   final FocusNode _keyboardFocusNode = FocusNode();
+  final FocusNode _logoutButtonFocusNode = FocusNode();
+  bool _isLoading = false;
 
   final List<_ClassItem> classOptions = [
     _ClassItem(
@@ -42,73 +44,80 @@ class _ClassSelectionPageState extends State<ClassSelectionPage> {
   @override
   void dispose() {
     _keyboardFocusNode.dispose();
+    _logoutButtonFocusNode.dispose();
     super.dispose();
   }
 
   void _handleKey(RawKeyEvent event) {
     if (event is RawKeyDownEvent) {
-      int maxIndex = classOptions.length; // Resume is after last class
+      int maxIndex = classOptions.length - 1;
       if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
           selectedIndex < maxIndex) {
         setState(() => selectedIndex++);
       } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
           selectedIndex > 0) {
         setState(() => selectedIndex--);
+      } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+        // Move focus to logout button
+        _logoutButtonFocusNode.requestFocus();
       } else if (event.logicalKey == LogicalKeyboardKey.enter ||
           event.logicalKey == LogicalKeyboardKey.select) {
-        if (selectedIndex < classOptions.length) {
+        if (selectedIndex <= maxIndex) {
           _onClassSelected(classOptions[selectedIndex].name);
-        } else {
-          // _onResumePressed();
         }
       }
     }
   }
 
-  // void _onResumePressed() {
-  //   ScaffoldMessenger.of(context).showSnackBar(
-  //     const SnackBar(content: Text('Resumed Previous')),
-  //   );
-  //   Navigator.push(
-  //     context,
-  //     MaterialPageRoute(builder: (context) => const FileSelectionPage()),
-  //   );
-  // }
+  void _handleLogoutKey(RawKeyEvent event) {
+    if (event is RawKeyDownEvent) {
+      if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+        // Move focus back to class cards
+        _keyboardFocusNode.requestFocus();
+      } else if (event.logicalKey == LogicalKeyboardKey.enter ||
+          event.logicalKey == LogicalKeyboardKey.select) {
+        _logout();
+      }
+    }
+  }
+
+  void _logout() async {
+    await FirebaseAuth.instance.signOut();
+    Navigator.of(context).pushReplacementNamed('/login');
+  }
 
   void _onClassSelected(String className) async {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("User not logged in")),
+        const SnackBar(content: Text("User not logged in")),
       );
       return;
     }
 
+    setState(() {
+      _isLoading = true;
+    });
+
     final userEmail = currentUser.email;
 
     try {
-      // Step 1: Get schoolName from user document
       final userDoc = await FirebaseFirestore.instance
           .collection('Users')
           .doc(userEmail)
           .get();
 
       if (!userDoc.exists) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("User data not found")),
-        );
+        _showMessage("User data not found");
         return;
       }
 
       final schoolName = userDoc.data()?['schoolName'];
       if (schoolName == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("School not assigned to user")),
-        );
+        _showMessage("School not assigned to user");
         return;
       }
 
-      // Step 2: Get courseName from /schools/{school}/classes/{class}
       final classDoc = await FirebaseFirestore.instance
           .collection('schools')
           .doc(schoolName)
@@ -117,34 +126,30 @@ class _ClassSelectionPageState extends State<ClassSelectionPage> {
           .get();
 
       if (!classDoc.exists) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Class data not found in school")),
-        );
+        _showMessage("Class data not found in school");
         return;
       }
 
       final courseName = classDoc.data()?['courseName'];
       if (courseName == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("No course assigned to this class")),
-        );
+        _showMessage("No course assigned to this class");
         return;
       }
 
-      // Step 3: Check if course exists
       final courseDoc = await FirebaseFirestore.instance
           .collection('courses')
           .doc(courseName)
           .get();
 
       if (!courseDoc.exists) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Course content not available")),
-        );
+        _showMessage("Course content not available");
         return;
       }
 
-      // All good → go to next screen
+      setState(() {
+        _isLoading = false;
+      });
+
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -156,153 +161,153 @@ class _ClassSelectionPageState extends State<ClassSelectionPage> {
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error fetching course data: $e")),
-      );
+      _showMessage("Error fetching course data: $e");
     }
+  }
+
+  void _showMessage(String message) {
+    setState(() {
+      _isLoading = false;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: RawKeyboardListener(
-        focusNode: _keyboardFocusNode,
-        autofocus: true,
-        onKey: _handleKey,
-        child: Stack(
-          children: [
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Row(
+      body: Stack(
+        children: [
+          RawKeyboardListener(
+            focusNode: _keyboardFocusNode,
+            autofocus: true,
+            onKey: _handleKey,
+            child: Stack(
+              children: [
+                Center(
+                  child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: classOptions.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final item = entry.value;
-                      return GestureDetector(
-                        onTap: () => _onClassSelected(item.name),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 100),
-                          margin: const EdgeInsets.symmetric(horizontal: 16),
-                          width: 250,
-                          height: 223,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: item.gradient,
-                            ),
-                            borderRadius: BorderRadius.circular(30),
-                            border: Border.all(
-                              color: index == selectedIndex
-                                  ? Colors.blue.withOpacity(0.8)
-                                  : Colors.grey.shade400,
-                            ),
-                            boxShadow: index == selectedIndex
-                                ? [
-                                    BoxShadow(
-                                      color: Colors.blue.withOpacity(0.5),
-                                      blurRadius: 6,
-                                      spreadRadius: 2,
-                                    ),
-                                  ]
-                                : [],
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Image.asset(item.imagePath,
-                                  height: 100, width: 100),
-                              const SizedBox(height: 8),
-                              Text(
-                                item.name,
-                                style: const TextStyle(
-                                    fontSize: 18, color: Colors.black),
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: classOptions.asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final item = entry.value;
+                          return GestureDetector(
+                            onTap: () => _onClassSelected(item.name),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 100),
+                              margin:
+                                  const EdgeInsets.symmetric(horizontal: 16),
+                              width: 250,
+                              height: 223,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: item.gradient,
+                                ),
+                                borderRadius: BorderRadius.circular(30),
+                                border: Border.all(
+                                  color: index == selectedIndex
+                                      ? Colors.blue.withOpacity(0.8)
+                                      : Colors.grey.shade400,
+                                ),
+                                boxShadow: index == selectedIndex
+                                    ? [
+                                        BoxShadow(
+                                          color: Colors.blue.withOpacity(0.5),
+                                          blurRadius: 6,
+                                          spreadRadius: 2,
+                                        ),
+                                      ]
+                                    : [],
                               ),
-                            ],
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Image.asset(item.imagePath,
+                                      height: 100, width: 100),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    item.name,
+                                    style: const TextStyle(
+                                        fontSize: 18, color: Colors.black),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+                ),
+                Positioned(
+                  bottom: 30,
+                  left: 30,
+                  right: 30,
+                  child: Row(
+                    children: [
+                      Image.asset(
+                        "assets/images/Avatar.png",
+                        height: 120,
+                        width: 120,
+                      ),
+                      const SizedBox(width: 20),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.grey.withOpacity(0.5),
+                              blurRadius: 6,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                        ),
+                        child: const Text(
+                          "What Are You Teaching Now?",
+                          style: TextStyle(
+                              fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      const Spacer(),
+                      RawKeyboardListener(
+                        focusNode: _logoutButtonFocusNode,
+                        onKey: _handleLogoutKey,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
                           ),
+                          icon: const Icon(Icons.logout, color: Colors.white),
+                          label: const Text(
+                            "Logout",
+                            style: TextStyle(color: Colors.white),
+                          ),
+                          onPressed: _logout,
                         ),
-                      );
-                    }).toList(),
+                      ),
+                    ],
                   ),
-                ],
+                ),
+              ],
+            ),
+          ),
+          if (_isLoading)
+            Container(
+              color: Colors.black.withOpacity(0.3),
+              child: const Center(
+                child: CircularProgressIndicator(),
               ),
             ),
-            // Bottom Bar
-            Positioned(
-              bottom: 30,
-              left: 30,
-              right: 30,
-              child: Row(
-                children: [
-                  Image.asset(
-                    "assets/images/Avatar.png",
-                    height: 120,
-                    width: 120,
-                  ),
-                  const SizedBox(width: 20),
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withOpacity(0.5),
-                          blurRadius: 6,
-                          spreadRadius: 2,
-                        ),
-                      ],
-                    ),
-                    child: const Text(
-                      "What Are You Teaching Now?",
-                      style:
-                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const Spacer(),
-                  // GestureDetector(
-                  //   // onTap: _onResumePressed,
-                  //   child: AnimatedContainer(
-                  //     duration: const Duration(milliseconds: 100),
-                  //     padding: const EdgeInsets.symmetric(
-                  //         vertical: 15, horizontal: 20),
-                  //     decoration: BoxDecoration(
-                  //       color: Colors.orange,
-                  //       borderRadius: BorderRadius.circular(10),
-                  //       boxShadow: [
-                  //         BoxShadow(
-                  //           color: Colors.blue.withOpacity(0.5),
-                  //           blurRadius: 8,
-                  //           spreadRadius: 2,
-                  //         ),
-                  //       ],
-                  //       border: Border.all(
-                  //         color: selectedIndex == classOptions.length
-                  //             ? Colors.blue.withOpacity(0.8)
-                  //             : Colors.transparent,
-                  //         width: 3,
-                  //       ),
-                  //     ),
-                  //     child: Row(
-                  //       children: const [
-                  //         Icon(Icons.play_arrow, color: Colors.white),
-                  //         SizedBox(width: 8),
-                  //         Text(
-                  //           "Resume Previous",
-                  //           style: TextStyle(fontSize: 20, color: Colors.white),
-                  //         ),
-                  //       ],
-                  //     ),
-                  //   ),
-                  // ),
-                ],
-              ),
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }

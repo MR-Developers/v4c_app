@@ -115,41 +115,47 @@ class _VdoPlaybackViewState extends State<VdoPlaybackView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: RawKeyboardListener(
-        focusNode: _keyboardFocusNode,
-        autofocus: true,
-        onKey: (RawKeyEvent event) {
-          if (event.logicalKey != LogicalKeyboardKey.enter &&
-              event.logicalKey != LogicalKeyboardKey.select &&
-              !_showReplay) {
-            _showControlsTemporarily();
-          }
-        },
-        child: GestureDetector(
-          onTap: _showControlsTemporarily,
-          child: _controller.value.isInitialized
-              ? Stack(
-                  children: [
-                    SizedBox.expand(
-                      child: FittedBox(
-                        fit: BoxFit.cover,
-                        child: SizedBox(
-                          width: _controller.value.size.width,
-                          height: _controller.value.size.height,
-                          child: VideoPlayer(_controller),
+    return WillPopScope(
+      onWillPop: () async {
+        print("Popping video view...");
+        return true; // allow pop
+      },
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: RawKeyboardListener(
+          focusNode: _keyboardFocusNode,
+          autofocus: true,
+          onKey: (RawKeyEvent event) {
+            if (event.logicalKey != LogicalKeyboardKey.enter &&
+                event.logicalKey != LogicalKeyboardKey.select &&
+                !_showReplay) {
+              _showControlsTemporarily();
+            }
+          },
+          child: GestureDetector(
+            onTap: _showControlsTemporarily,
+            child: _controller.value.isInitialized
+                ? Stack(
+                    children: [
+                      SizedBox.expand(
+                        child: FittedBox(
+                          fit: BoxFit.cover,
+                          child: SizedBox(
+                            width: _controller.value.size.width,
+                            height: _controller.value.size.height,
+                            child: VideoPlayer(_controller),
+                          ),
                         ),
                       ),
-                    ),
-                    if (_showControls) ...[
-                      _buildControlsOverlay(),
-                      _buildProgressBar(),
+                      if (_showControls) ...[
+                        _buildControlsOverlay(),
+                        _buildProgressBar(),
+                      ],
+                      if (_showReplay) _buildReplayOverlay(),
                     ],
-                    if (_showReplay) _buildReplayOverlay(),
-                  ],
-                )
-              : const Center(child: CircularProgressIndicator()),
+                  )
+                : const Center(child: CircularProgressIndicator()),
+          ),
         ),
       ),
     );

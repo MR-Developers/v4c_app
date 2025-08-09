@@ -135,29 +135,30 @@ class _VideoListPageState extends State<VideoListPage> {
             'lastAccessed': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
 
-          await Navigator.push(
+          Navigator.push(
             context,
             MaterialPageRoute(
               builder: (_) =>
                   VdoPlaybackView(videoUrl: videos[selectedIndex].value),
             ),
-          );
-          setState(() {
-            isLoading = true;
-          });
-          // Refresh the progress map after playback
-          final progressDoc = await FirebaseFirestore.instance
-              .collection('Courseprogress')
-              .doc(userId)
-              .collection('courseProgress')
-              .doc(widget.courseName)
-              .get();
-          await checkAndMarkDayWeekCourseCompletion();
-          if (progressDoc.exists) {
-            progressMap = progressDoc.data()?['completedContent'] ?? {};
-          }
-          setState(() {
-            isLoading = false;
+          ).then((_) async {
+            setState(() {
+              isLoading = true;
+            });
+            // Refresh the progress map after playback
+            final progressDoc = await FirebaseFirestore.instance
+                .collection('Courseprogress')
+                .doc(userId)
+                .collection('courseProgress')
+                .doc(widget.courseName)
+                .get();
+            await checkAndMarkDayWeekCourseCompletion();
+            if (progressDoc.exists) {
+              progressMap = progressDoc.data()?['completedContent'] ?? {};
+            }
+            setState(() {
+              isLoading = false;
+            });
           });
         }
       }
@@ -318,31 +319,7 @@ class _VideoListPageState extends State<VideoListPage> {
                               return Focus(
                                 focusNode: itemFocusNodes[index],
                                 child: GestureDetector(
-                                  onTap: () async {
-                                    final userId =
-                                        FirebaseAuth.instance.currentUser!.uid;
-                                    final videoKey = videos[selectedIndex].key;
-
-                                    await FirebaseFirestore.instance
-                                        .collection('Courseprogress')
-                                        .doc(userId)
-                                        .collection('courseProgress')
-                                        .doc(widget.courseName)
-                                        .set({
-                                      'completedContent.${widget.weekName}.${widget.dayName}.video.$videoKey':
-                                          true,
-                                      'lastAccessed':
-                                          FieldValue.serverTimestamp(),
-                                    }, SetOptions(merge: true));
-
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (_) => VdoPlaybackView(
-                                              videoUrl:
-                                                  videos[selectedIndex].value)),
-                                    );
-                                  },
+                                  onTap: () {},
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(
                                         vertical: 12, horizontal: 16),

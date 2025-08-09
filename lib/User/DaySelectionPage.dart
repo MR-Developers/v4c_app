@@ -177,7 +177,7 @@ class _DaySelectionPageState extends State<DaySelectionPage> {
     final type = widget.contentType.toLowerCase();
 
     if (type == 'video') {
-      await Navigator.push(
+      Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => VideoListPage(
@@ -186,9 +186,10 @@ class _DaySelectionPageState extends State<DaySelectionPage> {
             dayName: dayName,
           ),
         ),
-      );
-      await fetchAvailableDays();
-      setState(() {});
+      ).then((_) async {
+        await fetchAvailableDays();
+        setState(() {});
+      });
     } else if (type == 'pdf') {
       final pdfUrl = dayData['pdf']?['url'];
       if (pdfUrl == null || pdfUrl.isEmpty) {
@@ -217,16 +218,17 @@ class _DaySelectionPageState extends State<DaySelectionPage> {
         'lastAccessed': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-      await Navigator.push(
+      Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => PdfFullScreenPage(pdfUrl: pdfUrl),
         ),
-      );
-      await checkAndMarkDayWeekCourseCompletion(dayName);
-      await fetchAvailableDays();
-      setState(() {
-        isLoading = false;
+      ).then((_) async {
+        await checkAndMarkDayWeekCourseCompletion(dayName);
+        await fetchAvailableDays();
+        setState(() {
+          isLoading = false;
+        });
       });
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -288,8 +290,9 @@ class _DaySelectionPageState extends State<DaySelectionPage> {
     final weekDays = courseContent[widget.weekName]?.keys ?? [];
     bool weekDone = true;
     for (final day in weekDays) {
-      if (!(progressSnap.data()?['dayCompletion'][widget.weekName]?[day] ??
-          false)) {
+      final dayCompletionData =
+          (progressSnap.data()?['dayCompletion'] ?? {}) as Map;
+      if (!(dayCompletionData[widget.weekName]?[day] ?? false)) {
         weekDone = false;
         break;
       }
@@ -394,7 +397,7 @@ class _DaySelectionPageState extends State<DaySelectionPage> {
                                     return Focus(
                                       focusNode: itemFocusNodes[index],
                                       child: GestureDetector(
-                                        onTap: () => _onDaySelected(day),
+                                        onTap: () {},
                                         child: Container(
                                           padding: const EdgeInsets.symmetric(
                                               vertical: 12, horizontal: 16),
