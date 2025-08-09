@@ -17,8 +17,8 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final FocusNode emailFocus = FocusNode();
   final FocusNode passwordFocus = FocusNode();
-  final FocusNode loginButtonFocus = FocusNode();
   final FocusNode forgotPasswordFocus = FocusNode();
+  final FocusNode loginButtonFocus = FocusNode();
 
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
@@ -31,7 +31,6 @@ class _LoginPageState extends State<LoginPage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       emailFocus.requestFocus();
-      setState(() {});
     });
   }
 
@@ -39,8 +38,8 @@ class _LoginPageState extends State<LoginPage> {
   void dispose() {
     emailFocus.dispose();
     passwordFocus.dispose();
-    loginButtonFocus.dispose();
     forgotPasswordFocus.dispose();
+    loginButtonFocus.dispose();
     emailController.dispose();
     passwordController.dispose();
     super.dispose();
@@ -121,46 +120,18 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    return KeyboardListener(
-      focusNode: FocusNode(),
-      autofocus: true,
-      onKeyEvent: (event) async {
-        if (event is KeyDownEvent) {
-          if (emailFocus.hasFocus &&
-              event.logicalKey == LogicalKeyboardKey.arrowDown) {
-            passwordFocus.requestFocus();
-          } else if (passwordFocus.hasFocus &&
-              event.logicalKey == LogicalKeyboardKey.arrowUp) {
-            emailFocus.requestFocus();
-          } else if (passwordFocus.hasFocus &&
-              event.logicalKey == LogicalKeyboardKey.arrowDown) {
-            forgotPasswordFocus.requestFocus();
-          } else if (forgotPasswordFocus.hasFocus &&
-              event.logicalKey == LogicalKeyboardKey.arrowUp) {
-            passwordFocus.requestFocus();
-          } else if (forgotPasswordFocus.hasFocus &&
-              event.logicalKey == LogicalKeyboardKey.arrowDown) {
-            loginButtonFocus.requestFocus();
-          } else if (loginButtonFocus.hasFocus &&
-              event.logicalKey == LogicalKeyboardKey.arrowUp) {
-            forgotPasswordFocus.requestFocus();
-          } else if (passwordFocus.hasFocus &&
-              event.logicalKey == LogicalKeyboardKey.enter) {
-            CheckUser();
-          }
-          setState(() {});
-        }
-      },
-      child: Scaffold(
-        body: Row(
-          children: [
-            Expanded(
-              flex: 2,
-              child: Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 500),
+    return Scaffold(
+      body: Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 500),
+                  child: FocusTraversalGroup(
+                    policy: OrderedTraversalPolicy(),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -186,65 +157,77 @@ class _LoginPageState extends State<LoginPage> {
                         const SizedBox(height: 8),
                         FocusableActionDetector(
                           focusNode: emailFocus,
+                          onShowFocusHighlight: (_) => setState(() {}),
                           actions: {
                             ActivateIntent: CallbackAction<ActivateIntent>(
                               onInvoke: (intent) async {
-                                emailController.text = await Navigator.push(
+                                final result = await Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) =>
                                         const TextFieldPage(Type: "Email"),
                                   ),
                                 );
-                                setState(() {});
+                                if (result is String) {
+                                  emailController.text = result;
+                                  setState(() {});
+                                }
                                 return null;
                               },
                             ),
                           },
                           child: buildInputBox(
-                              emailFocus,
-                              emailController.text.isNotEmpty
-                                  ? emailController.text
-                                  : 'Enter your Email'),
+                            emailFocus,
+                            emailController.text.isNotEmpty
+                                ? emailController.text
+                                : 'Enter your Email',
+                          ),
                         ),
                         const SizedBox(height: 20),
                         Text("Password", style: _labelStyle()),
                         const SizedBox(height: 8),
                         FocusableActionDetector(
                           focusNode: passwordFocus,
+                          onShowFocusHighlight: (_) => setState(() {}),
                           actions: {
                             ActivateIntent: CallbackAction<ActivateIntent>(
                               onInvoke: (intent) async {
-                                passwordController.text = await Navigator.push(
+                                final result = await Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) =>
                                         const TextFieldPage(Type: "Password"),
                                   ),
-                                ) as String;
-                                setState(() {});
+                                );
+                                if (result is String) {
+                                  passwordController.text = result;
+                                  setState(() {});
+                                }
                                 return null;
                               },
                             ),
                           },
                           child: buildInputBox(
-                              passwordFocus,
-                              passwordController.text.isNotEmpty
-                                  ? '${'*' * passwordController.text.length}'
-                                  : 'Enter your Password'),
+                            passwordFocus,
+                            passwordController.text.isNotEmpty
+                                ? '*' * passwordController.text.length
+                                : 'Enter your Password',
+                          ),
                         ),
                         const SizedBox(height: 5),
                         FocusableActionDetector(
                           focusNode: forgotPasswordFocus,
+                          onShowFocusHighlight: (_) => setState(() {}),
                           actions: {
                             ActivateIntent: CallbackAction<ActivateIntent>(
                               onInvoke: (intent) {
                                 Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          const ForgotPassword(),
-                                    ));
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const ForgotPassword(),
+                                  ),
+                                );
                                 return null;
                               },
                             ),
@@ -320,27 +303,27 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
             ),
-            Expanded(
-              flex: 2,
-              child: Container(
-                color: HexColor("#64B1B9"),
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(30.0),
-                    child: Container(
-                      color: Colors.white,
-                      child: Image.asset(
-                        'assets/images/V4CLogo(Landscape).png',
-                        fit: BoxFit.contain,
-                        width: 350,
-                      ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Container(
+              color: HexColor("#64B1B9"),
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(30.0),
+                  child: Container(
+                    color: Colors.white,
+                    child: Image.asset(
+                      'assets/images/V4CLogo(Landscape).png',
+                      fit: BoxFit.contain,
+                      width: 350,
                     ),
                   ),
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
