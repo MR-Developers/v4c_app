@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:v4c_app/User/ClassSelection.dart';
+import 'package:v4c_app/utils/Login.dart';
 
 import 'firebase_options.dart';
 import 'package:v4c_app/GetStarted.dart';
@@ -30,6 +31,9 @@ class MyApp extends StatelessWidget {
       },
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
+        routes: {
+          '/login': (context) => const LoginPage(),
+        },
         theme: ThemeData(
           brightness: Brightness.light,
           primarySwatch: Colors.orange,
